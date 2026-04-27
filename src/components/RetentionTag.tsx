@@ -1,30 +1,19 @@
 import { RetentionVerdict } from '@/lib/types';
 
-const config: Record<RetentionVerdict, { label: string; icon: string; classes: string }> = {
-  yes: {
-    label: 'Worth Retaining',
-    icon: '✓',
-    classes: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  },
-  conditional: {
-    label: 'Conditional',
-    icon: '~',
-    classes: 'bg-amber-50 text-amber-700 border-amber-200',
-  },
-  no: {
-    label: 'Do Not Prioritize',
-    icon: '✕',
-    classes: 'bg-slate-100 text-slate-500 border-slate-200',
-  },
+const config: Record<RetentionVerdict, { label: string; icon: string; bg: string; text: string; border: string }> = {
+  yes:         { label: 'Worth Retaining',    icon: '✓', bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0' },
+  conditional: { label: 'Conditional',        icon: '~', bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+  no:          { label: 'Do Not Prioritize',  icon: '✕', bg: '#F8F9FB', text: '#6B7A99', border: '#E4E7EE' },
 };
 
 export function RetentionTag({ verdict }: { verdict: RetentionVerdict }) {
-  const { label, icon, classes } = config[verdict];
+  const { label, icon, bg, text, border } = config[verdict];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 border font-medium rounded-full px-3 py-1 text-sm ${classes}`}
+      className="inline-flex items-center gap-1.5 font-semibold rounded-full border text-xs"
+      style={{ backgroundColor: bg, color: text, borderColor: border, padding: '0.25rem 0.75rem' }}
     >
-      <span className="font-bold">{icon}</span>
+      <span className="font-bold text-sm leading-none">{icon}</span>
       {label}
     </span>
   );

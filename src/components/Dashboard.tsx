@@ -5,16 +5,70 @@ import Link from 'next/link';
 import { Resident, RiskCategory } from '@/lib/types';
 import { RiskBadge, riskBarColor } from './RiskBadge';
 import { RetentionTag } from './RetentionTag';
+import { Navbar } from './Navbar';
 import { properties } from '@/lib/data';
 
 const RISK_ORDER: RiskCategory[] = ['very-high', 'high', 'medium', 'low'];
 
-const statConfig: { category: RiskCategory; label: string; bg: string; border: string; text: string }[] = [
-  { category: 'very-high', label: 'Very High Risk', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
-  { category: 'high', label: 'High Risk', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
-  { category: 'medium', label: 'Medium Risk', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' },
-  { category: 'low', label: 'Low Risk', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
+const tierConfig: {
+  category: RiskCategory;
+  label: string;
+  short: string;
+  bar: string;
+  dot: string;
+  activeBg: string;
+  activeBorder: string;
+}[] = [
+  {
+    category: 'very-high',
+    label: 'Very High Risk',
+    short: 'Very High',
+    bar: 'bg-red-500',
+    dot: 'bg-red-500',
+    activeBg: 'bg-red-50',
+    activeBorder: 'border-red-400',
+  },
+  {
+    category: 'high',
+    label: 'High Risk',
+    short: 'High',
+    bar: 'bg-orange-400',
+    dot: 'bg-orange-400',
+    activeBg: 'bg-orange-50',
+    activeBorder: 'border-orange-400',
+  },
+  {
+    category: 'medium',
+    label: 'Medium Risk',
+    short: 'Medium',
+    bar: 'bg-amber-400',
+    dot: 'bg-amber-400',
+    activeBg: 'bg-amber-50',
+    activeBorder: 'border-amber-400',
+  },
+  {
+    category: 'low',
+    label: 'Low Risk',
+    short: 'Low',
+    bar: 'bg-emerald-500',
+    dot: 'bg-emerald-500',
+    activeBg: 'bg-emerald-50',
+    activeBorder: 'border-emerald-400',
+  },
 ];
+
+function initials(name: string) {
+  return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function avatarColor(id: string): string {
+  const colors = [
+    '#1B3461', '#2A4A80', '#3B5EA6', '#4C72C0',
+    '#1A4731', '#2D6A4F', '#1F4E79', '#6B3A2A',
+  ];
+  const idx = id.charCodeAt(id.length - 1) % colors.length;
+  return colors[idx];
+}
 
 export function Dashboard({ residents }: { residents: Resident[] }) {
   const [filterRisk, setFilterRisk] = useState<RiskCategory | 'all'>('all');
@@ -35,7 +89,12 @@ export function Dashboard({ residents }: { residents: Resident[] }) {
       .filter((r) => {
         if (filterRisk !== 'all' && r.riskCategory !== filterRisk) return false;
         if (filterProperty !== 'all' && r.property !== filterProperty) return false;
-        if (search && !r.name.toLowerCase().includes(search.toLowerCase()) && !r.unit.toLowerCase().includes(search.toLowerCase())) return false;
+        if (
+          search &&
+          !r.name.toLowerCase().includes(search.toLowerCase()) &&
+          !r.unit.toLowerCase().includes(search.toLowerCase())
+        )
+          return false;
         return true;
       })
       .sort((a, b) => {
@@ -49,152 +108,269 @@ export function Dashboard({ residents }: { residents: Resident[] }) {
   const atRiskRevenue = residents
     .filter((r) => r.riskCategory === 'very-high' || r.riskCategory === 'high')
     .reduce((s, r) => s + r.monthlyRent * 12, 0);
+  const expiringIn60 = residents.filter((r) => {
+    const days = Math.ceil((new Date(r.leaseEndDate).getTime() - Date.now()) / 86400000);
+    return days > 0 && days <= 60;
+  }).length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Greystar</p>
-              <h1 className="text-2xl font-bold text-slate-900">Lease Renewal Intelligence</h1>
-              <p className="text-sm text-slate-500 mt-1">AI-powered churn risk · {residents.length} residents across {properties.length} properties</p>
-            </div>
-            <div className="flex gap-6 text-right">
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide">Avg Risk Score</p>
-                <p className="text-2xl font-bold text-slate-800">{avgRisk}<span className="text-sm font-normal text-slate-400">/100</span></p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide">Revenue at Risk</p>
-                <p className="text-2xl font-bold text-red-600">${(atRiskRevenue / 1000).toFixed(0)}k<span className="text-sm font-normal text-slate-400">/yr</span></p>
-              </div>
-            </div>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--gs-bg)' }}>
+      <Navbar breadcrumb={[{ label: 'Lease Renewal Intelligence' }]} />
+
+      {/* Page title bar */}
+      <div className="px-8 pt-8 pb-6 max-w-7xl mx-auto">
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--gs-gold)' }}>
+              Renewal Intelligence
+            </p>
+            <h1 className="text-3xl font-bold" style={{ color: 'var(--gs-navy)' }}>
+              Resident Risk Dashboard
+            </h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--gs-text-muted)' }}>
+              {residents.length} residents · {properties.length} properties · Powered by predictive model
+            </p>
+          </div>
+          <div className="text-sm font-medium px-3 py-1.5 rounded-full" style={{ backgroundColor: 'var(--gs-navy)', color: 'var(--gs-gold-light)' }}>
+            Q2 2025
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-8 space-y-8">
-        {/* Stat cards */}
+      <div className="max-w-7xl mx-auto px-8 pb-12 space-y-6">
+
+        {/* KPI strip */}
         <div className="grid grid-cols-4 gap-4">
-          {statConfig.map(({ category, label, bg, border, text }) => (
-            <button
-              key={category}
-              onClick={() => setFilterRisk(filterRisk === category ? 'all' : category)}
-              className={`${bg} border ${border} rounded-xl p-4 text-left transition-all ring-2 ${
-                filterRisk === category ? 'ring-slate-400' : 'ring-transparent'
-              } hover:ring-slate-300`}
+          {[
+            { label: 'Total Residents', value: residents.length, sub: 'in portfolio', accent: false },
+            { label: 'Revenue at Risk', value: `$${(atRiskRevenue / 1000).toFixed(0)}k`, sub: 'annualized', accent: true },
+            { label: 'Avg Risk Score', value: `${avgRisk}/100`, sub: 'portfolio mean', accent: false },
+            { label: 'Expiring ≤ 60 Days', value: expiringIn60, sub: 'leases', accent: false },
+          ].map(({ label, value, sub, accent }) => (
+            <div
+              key={label}
+              className="rounded-xl p-5 border"
+              style={{
+                backgroundColor: accent ? 'var(--gs-navy)' : 'var(--gs-card)',
+                borderColor: accent ? 'var(--gs-navy)' : 'var(--gs-border)',
+              }}
             >
-              <p className={`text-3xl font-bold ${text}`}>{counts[category]}</p>
-              <p className={`text-sm font-medium mt-1 ${text}`}>{label}</p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {residents.filter((r) => r.riskCategory === category).reduce((s, r) => s + r.monthlyRent, 0).toLocaleString()} mo. rent
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+                style={{ color: accent ? 'var(--gs-gold)' : 'var(--gs-text-muted)' }}>
+                {label}
               </p>
-            </button>
+              <p className="text-3xl font-bold"
+                style={{ color: accent ? '#FFFFFF' : 'var(--gs-navy)' }}>
+                {value}
+              </p>
+              <p className="text-xs mt-1"
+                style={{ color: accent ? 'var(--gs-gold-light)' : 'var(--gs-text-muted)' }}>
+                {sub}
+              </p>
+            </div>
           ))}
         </div>
 
-        {/* Filters */}
+        {/* Risk tier filter cards */}
+        <div className="grid grid-cols-4 gap-3">
+          {tierConfig.map(({ category, label, bar, activeBg, activeBorder }) => {
+            const active = filterRisk === category;
+            const count = counts[category];
+            const rent = residents
+              .filter((r) => r.riskCategory === category)
+              .reduce((s, r) => s + r.monthlyRent, 0);
+            const pct = Math.round((count / residents.length) * 100);
+            return (
+              <button
+                key={category}
+                onClick={() => setFilterRisk(active ? 'all' : category)}
+                className={`rounded-xl p-4 text-left border-2 transition-all ${
+                  active ? `${activeBg} ${activeBorder}` : 'bg-white border-transparent hover:border-gray-200'
+                }`}
+                style={{ boxShadow: active ? 'none' : '0 1px 3px rgba(0,0,0,0.06)' }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-2xl font-bold" style={{ color: 'var(--gs-navy)' }}>{count}</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white border" style={{ color: 'var(--gs-text-muted)', borderColor: 'var(--gs-border)' }}>
+                    {pct}%
+                  </span>
+                </div>
+                <p className="text-sm font-semibold mb-2" style={{ color: 'var(--gs-navy)' }}>{label}</p>
+                {/* Mini bar */}
+                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden mb-2">
+                  <div className={`h-1.5 rounded-full ${bar}`} style={{ width: `${pct}%` }} />
+                </div>
+                <p className="text-xs" style={{ color: 'var(--gs-text-muted)' }}>
+                  ${rent.toLocaleString()}/mo
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filter / search bar */}
         <div className="flex items-center gap-3 flex-wrap">
-          <input
-            type="text"
-            placeholder="Search by name or unit…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white w-56 focus:outline-none focus:ring-2 focus:ring-slate-300"
-          />
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search resident or unit…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-4 py-2 text-sm rounded-lg border bg-white focus:outline-none focus:ring-2 w-60"
+              style={{ borderColor: 'var(--gs-border)', color: 'var(--gs-navy)', '--tw-ring-color': 'var(--gs-navy-light)' } as React.CSSProperties}
+            />
+          </div>
+
           <select
             value={filterProperty}
             onChange={(e) => setFilterProperty(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+            className="px-3 py-2 text-sm rounded-lg border bg-white focus:outline-none focus:ring-2"
+            style={{ borderColor: 'var(--gs-border)', color: 'var(--gs-navy)' }}
           >
             <option value="all">All Properties</option>
             {properties.map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
+
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as typeof sortKey)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+            className="px-3 py-2 text-sm rounded-lg border bg-white focus:outline-none"
+            style={{ borderColor: 'var(--gs-border)', color: 'var(--gs-navy)' }}
           >
             <option value="riskScore">Sort: Risk Score</option>
-            <option value="leaseEndDate">Sort: Lease End Date</option>
+            <option value="leaseEndDate">Sort: Lease End</option>
             <option value="monthlyRent">Sort: Monthly Rent</option>
           </select>
+
           {(filterRisk !== 'all' || filterProperty !== 'all' || search) && (
             <button
               onClick={() => { setFilterRisk('all'); setFilterProperty('all'); setSearch(''); }}
-              className="text-sm text-slate-500 hover:text-slate-800 underline"
+              className="text-sm underline"
+              style={{ color: 'var(--gs-text-muted)' }}
             >
-              Clear filters
+              Clear
             </button>
           )}
-          <span className="text-sm text-slate-400 ml-auto">{filtered.length} residents</span>
+
+          <span className="ml-auto text-sm font-medium" style={{ color: 'var(--gs-text-muted)' }}>
+            {filtered.length} resident{filtered.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--gs-card)', borderColor: 'var(--gs-border)' }}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Resident</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Property / Unit</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Risk</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Score</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Rent</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Lease Ends</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Retention</th>
-                <th className="px-5 py-3" />
+              <tr className="border-b" style={{ backgroundColor: '#F8F9FB', borderColor: 'var(--gs-border)' }}>
+                {['Resident', 'Property', 'Risk Level', 'Score', 'Rent / yr', 'Lease Ends', 'Retention', ''].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-5 py-3.5 text-xs font-semibold uppercase tracking-wide"
+                    style={{ color: 'var(--gs-text-muted)' }}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-5 py-3.5">
-                    <span className="font-medium text-slate-900">{r.name}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-slate-700">{r.property}</span>
-                    <span className="text-slate-400 ml-2">#{r.unit}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <RiskBadge category={r.riskCategory} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <tbody>
+              {filtered.map((r) => {
+                const days = Math.ceil((new Date(r.leaseEndDate).getTime() - Date.now()) / 86400000);
+                const urgent = days > 0 && days <= 60;
+                return (
+                  <tr
+                    key={r.id}
+                    className="border-b group transition-colors hover:bg-blue-50/30"
+                    style={{ borderColor: '#F1F3F8' }}
+                  >
+                    {/* Resident */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
                         <div
-                          className={`h-1.5 rounded-full ${riskBarColor(r.riskCategory)}`}
-                          style={{ width: `${r.riskScore}%` }}
-                        />
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                          style={{ backgroundColor: avatarColor(r.id) }}
+                        >
+                          {initials(r.name)}
+                        </div>
+                        <div>
+                          <p className="font-semibold" style={{ color: 'var(--gs-navy)' }}>{r.name}</p>
+                          <p className="text-xs" style={{ color: 'var(--gs-text-muted)' }}>Unit {r.unit}</p>
+                        </div>
                       </div>
-                      <span className="text-slate-600 tabular-nums">{r.riskScore}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-700 tabular-nums">
-                    ${r.monthlyRent.toLocaleString()}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600 tabular-nums">
-                    {new Date(r.leaseEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <RetentionTag verdict={r.retentionVerdict} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Link
-                      href={`/residents/${r.id}`}
-                      className="text-xs font-medium text-slate-400 group-hover:text-slate-700 transition-colors"
-                    >
-                      View →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+
+                    {/* Property */}
+                    <td className="px-5 py-4">
+                      <p className="text-sm" style={{ color: 'var(--gs-navy)' }}>{r.property}</p>
+                    </td>
+
+                    {/* Risk badge */}
+                    <td className="px-5 py-4">
+                      <RiskBadge category={r.riskCategory} />
+                    </td>
+
+                    {/* Score bar */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#EEF0F6' }}>
+                          <div
+                            className={`h-1.5 rounded-full ${riskBarColor(r.riskCategory)}`}
+                            style={{ width: `${r.riskScore}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--gs-navy)' }}>
+                          {r.riskScore}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Rent */}
+                    <td className="px-5 py-4 tabular-nums">
+                      <p className="text-sm font-medium" style={{ color: 'var(--gs-navy)' }}>
+                        ${r.monthlyRent.toLocaleString()}/mo
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--gs-text-muted)' }}>
+                        ${(r.monthlyRent * 12).toLocaleString()}/yr
+                      </p>
+                    </td>
+
+                    {/* Lease end */}
+                    <td className="px-5 py-4">
+                      <p className="text-sm" style={{ color: 'var(--gs-navy)' }}>
+                        {new Date(r.leaseEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                      <p className={`text-xs font-medium ${urgent ? 'text-red-500' : ''}`}
+                        style={urgent ? {} : { color: 'var(--gs-text-muted)' }}>
+                        {days > 0 ? `${days}d remaining` : 'Expired'}
+                      </p>
+                    </td>
+
+                    {/* Retention */}
+                    <td className="px-5 py-4">
+                      <RetentionTag verdict={r.retentionVerdict} />
+                    </td>
+
+                    {/* View */}
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/residents/${r.id}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: 'var(--gs-navy)', borderColor: 'var(--gs-border)', backgroundColor: 'white' }}
+                      >
+                        View <span>→</span>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm">
+                  <td colSpan={8} className="px-5 py-16 text-center text-sm" style={{ color: 'var(--gs-text-muted)' }}>
                     No residents match the current filters.
                   </td>
                 </tr>
@@ -202,6 +378,7 @@ export function Dashboard({ residents }: { residents: Resident[] }) {
             </tbody>
           </table>
         </div>
+
       </div>
     </div>
   );
